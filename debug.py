@@ -2,11 +2,11 @@ from graph import GraphBuilder
 
 
 def get_vertex_qr_code():
-    print('Write vertex qr code:', end=' ')
+    print('Write vertex qr code:')
     try:
         return int(input())
     except ValueError:
-        print('Try again:', end=' ')
+        print('Try again:')
         return int(input())
 
 
@@ -15,7 +15,7 @@ def convert_turn_qr_code(turn_qr_code):
 
 
 def get_turns_qr_code():
-    print('Write turn qr code:', end=' ')
+    print('Write turn qr code:')
     try:
         return int(input())
     except ValueError:
@@ -42,5 +42,5 @@ for i in range(100):
     print(convert_to_turn_string(
         gb.get_next_turn(vertex_qr_code=get_vertex_qr_code(), turns_qr_code=convert_turn_qr_code(get_turns_qr_code()))))
     print(gb.get_state())
-    if i > 3:
+    if i > 7:
         gb.visualize()
