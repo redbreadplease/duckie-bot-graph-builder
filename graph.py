@@ -1,4 +1,4 @@
-from graphviz import Digraph
+from graphviz import Graph
 
 TURN_RIGHT, TURN_LEFT, STRAIGHT = 'TURN_RIGHT', 'TURN_LEFT', 'STRAIGHT'
 
@@ -34,21 +34,16 @@ def get_reversed_turn_type(turn_type):
         return STRAIGHT
 
 
-def insert_to_dict(d: dict, key, value):
-    if key in list(d.keys()):
-        if value not in d[key]:
-            d[key].append(value)
-    else:
-        d[key] = [value]
-    return d
-
-
 class TripleVertex:
     def __init__(self, v1_id: int, v2_id: int, v3_id: int, turn_type_between):
         self.v1_id = v1_id
         self.v2_id = v2_id
         self.v3_id = v3_id
         self.turn_type_between = turn_type_between
+
+    def to_string(self):
+        return 'v1: ' + str(self.v1_id) + '  v2: ' + str(self.v2_id) + '  v3: ' + str(
+            self.v3_id) + '  turn type: ' + self.turn_type_between
 
     def __repr__(self):
         return 'v1: ' + str(self.v1_id) + '  v2: ' + str(self.v2_id) + '  v3: ' + str(
@@ -66,8 +61,7 @@ class VertexPair:
 
     def is_equal(self, to_compare_with):
         if self.v1_id in [to_compare_with.v1_id, to_compare_with.v2_id] and \
-                self.v2_id in [to_compare_with.v1_id, to_compare_with.v2_id] and \
-                self.turn_type == to_compare_with.turn_type:
+                self.v2_id in [to_compare_with.v1_id, to_compare_with.v2_id]:
             return True
         else:
             return False
@@ -82,13 +76,13 @@ def is_vertex_pair_here(vertex_pairs: list, checking_vertex_pair: VertexPair):
 
 class GraphBuilder:
     def __init__(self):
-        self.graph = Digraph('G', filename='graph.gv')
         self.last_vertex_id = None
         self.last_turn_type = None
         self.pre_last_vertex_id = None
-        self.graph = Digraph('G', filename='hello.gv', engine='sfdp')
+        self.graph = Graph('G', filename='graph.gv', engine='sfdp')
         self.triple_vertexes = list()
         self.dif_vertexes_ids = list()
+        self.from_first_vertex_to_another_connections = dict()
 
     def update_state(self, vertex_id: int, last_turn_type):
         self.pre_last_vertex_id = self.last_vertex_id
@@ -102,18 +96,18 @@ class GraphBuilder:
     def get_optimal_turns(self, prev_last_ver_id: int, last_ver_id: int, turns_qr_code: int):
         possible_turns = get_turn_types_by_qr(turns_qr_code=turns_qr_code)
         old_data = self.triple_vertexes
-        for triple_vertexe in old_data:
+        for triple_vertex in old_data:
             try:
-                if triple_vertexe.v1_id == prev_last_ver_id and triple_vertexe.v2_id == last_ver_id:
-                    possible_turns.remove(triple_vertexe.turn_type_between)
+                if triple_vertex.v1_id == prev_last_ver_id and triple_vertex.v2_id == last_ver_id:
+                    possible_turns.remove(triple_vertex.turn_type_between)
             except ValueError:
-                print('Cannot remove. Has: ', possible_turns, '  trying remove: ', triple_vertexe.turn_type_between)
+                print('Cannot remove. Has: ', possible_turns, '  trying remove: ', triple_vertex.turn_type_between)
             try:
-                if triple_vertexe.v3_id == prev_last_ver_id and triple_vertexe.v2_id == last_ver_id:
-                    possible_turns.remove(get_reversed_turn_type(triple_vertexe.turn_type_between))
+                if triple_vertex.v3_id == prev_last_ver_id and triple_vertex.v2_id == last_ver_id:
+                    possible_turns.remove(get_reversed_turn_type(triple_vertex.turn_type_between))
             except ValueError:
                 print('Cannot remove. Has: ', possible_turns, '  trying remove: ',
-                      get_reversed_turn_type(triple_vertexe.turn_type_between))
+                      get_reversed_turn_type(triple_vertex.turn_type_between))
         return possible_turns
 
     def add_triple_vertex(self, v1_id: int, v2_id: int, v3_id: int, turn_type):
@@ -121,36 +115,44 @@ class GraphBuilder:
         old_data.append(TripleVertex(v1_id=v1_id, v2_id=v2_id, v3_id=v3_id, turn_type_between=turn_type))
 
     def is_graph_built(self):
-        if not self.dif_vertexes_ids:
+        if not self.dif_vertexes_ids or not self.triple_vertexes:
             return False
-        from_first_vertex_to_another_connections = dict()
-        for triple_vertex in self.triple_vertexes:
-            v1, v2, v3 = triple_vertex.v1_id, triple_vertex.v2_id, triple_vertex.v3_id
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v1, value=v2)
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v1, value=v3)
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v2, value=v1)
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v3, value=v1)
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v2, value=v3)
-            from_first_vertex_to_another_connections = insert_to_dict(d=from_first_vertex_to_another_connections,
-                                                                      key=v3, value=v2)
+        triple_vertex = self.triple_vertexes[-1]
+        v1, v2, v3 = triple_vertex.v1_id, triple_vertex.v2_id, triple_vertex.v3_id
+        if v2 not in self.from_first_vertex_to_another_connections[v1]:
+            self.from_first_vertex_to_another_connections[v1].append(v2)
+        if v2 not in self.from_first_vertex_to_another_connections[v3]:
+            self.from_first_vertex_to_another_connections[v1].append(v3)
+        if v1 not in self.from_first_vertex_to_another_connections[v2]:
+            self.from_first_vertex_to_another_connections[v2].append(v1)
+        if v1 not in self.from_first_vertex_to_another_connections[v3]:
+            self.from_first_vertex_to_another_connections[v3].append(v1)
+        if v3 not in self.from_first_vertex_to_another_connections[v1]:
+            self.from_first_vertex_to_another_connections[v1].append(v3)
+        if v3 not in self.from_first_vertex_to_another_connections[v2]:
+            self.from_first_vertex_to_another_connections[v2].append(v3)
         summary = 0
-        for arr in list(from_first_vertex_to_another_connections.values()):
+        print(self.from_first_vertex_to_another_connections)
+        for arr in list(self.from_first_vertex_to_another_connections.values()):
             summary += len(arr)
-        return summary == len(self.dif_vertexes_ids) * 3
+        return bool(summary >= len(self.dif_vertexes_ids) * 3)
+
+    def write_down_triple_vertexes(self):
+        with open('TripleVertexes.txt', 'w') as file:
+            for triple_vertex in self.triple_vertexes:
+                file.write(triple_vertex.to_string())
+                file.write("\n")
 
     def get_next_turn(self, vertex_qr_code: int, turns_qr_code: int):
         cur_vertex = get_vertex_id_by_qr(vertex_qr_code=vertex_qr_code)
 
         if self.is_graph_built():
+            self.write_down_triple_vertexes()
             return -1
 
         if cur_vertex not in self.dif_vertexes_ids:
             self.dif_vertexes_ids.append(cur_vertex)
+            self.from_first_vertex_to_another_connections[cur_vertex] = list()
 
         if self.last_vertex_id is None or self.pre_last_vertex_id is None:
             to_turn_to = get_turn_types_by_qr(turns_qr_code=turns_qr_code)[0]
@@ -181,3 +183,4 @@ class GraphBuilder:
             self.graph.edge(str(vertex_pair.v1_id), str(vertex_pair.v2_id))
         self.graph.view()
         self.graph.clear()
+        self.graph = Graph('G', filename='graph.gv', engine='sfdp')
