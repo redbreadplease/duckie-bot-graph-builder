@@ -22,7 +22,7 @@ def get_turn_code_by_turn_type(turn_type):
     if turn_type == TURN_LEFT:
         return 0
     else:
-        return STRAIGHT
+        return 1
 
 
 def get_reversed_turn_type(turn_type):
